@@ -1,0 +1,2173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OPTIM — Bet optimizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Barlow:wght@300;400;500;600&family=Barlow+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════
+   FOUNDATION
+═══════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px;-webkit-font-smoothing:antialiased}
+
+:root{
+  --k:    #000000;
+  --k1:   #0d0d0d;
+  --k2:   #1a1a1a;
+  --k3:   #2a2a2a;
+  --k4:   #3d3d3d;
+  --mid:  #666666;
+  --lt:   #999999;
+  --pale: #cccccc;
+  --bone: #e8e8e8;
+  --w:    #ffffff;
+  --serif:'Playfair Display',Georgia,serif;
+  --sans: 'Barlow',sans-serif;
+  --mono: 'Barlow Mono',monospace;
+  --ease: cubic-bezier(.22,.68,0,1.2);
+}
+
+body{
+  background:var(--k);
+  color:var(--w);
+  font-family:var(--sans);
+  min-height:100dvh;
+  overflow-x:hidden;
+  cursor:default;
+}
+
+/* Custom cursor */
+*{cursor:default}
+button,a,[onclick]{cursor:pointer}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:2px;height:2px}
+::-webkit-scrollbar-thumb{background:var(--k4)}
+::-webkit-scrollbar-track{background:transparent}
+
+/* Selection */
+::selection{background:var(--w);color:var(--k)}
+
+/* ═══════════════════════════════════════
+   GRID BACKDROP
+═══════════════════════════════════════ */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(var(--k2) 1px,transparent 1px),
+    linear-gradient(90deg,var(--k2) 1px,transparent 1px);
+  background-size:48px 48px;
+  pointer-events:none;
+  z-index:0;
+  opacity:.4;
+}
+
+/* ═══════════════════════════════════════
+   LAYOUT SHELL
+═══════════════════════════════════════ */
+.shell{
+  position:relative;z-index:1;
+  display:grid;
+  grid-template-rows:auto 1fr;
+  height:100dvh;
+  overflow:hidden;
+}
+
+/* ═══════════════════════════════════════
+   HEADER
+═══════════════════════════════════════ */
+.topbar{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  align-items:center;
+  padding:0 24px;
+  height:56px;
+  border-bottom:1px solid var(--k3);
+  background:rgba(0,0,0,.9);
+  backdrop-filter:blur(20px);
+  position:relative;
+  z-index:50;
+}
+
+.topbar-left{display:flex;align-items:center;gap:20px}
+.topbar-right{display:flex;align-items:center;gap:16px;justify-content:flex-end}
+
+.wordmark{
+  font-family:var(--serif);
+  font-size:24px;font-weight:900;
+  letter-spacing:-.02em;
+  color:var(--w);
+  line-height:1;
+}
+
+.topbar-tag{
+  font-family:var(--mono);
+  font-size:9px;color:var(--k4);
+  text-transform:uppercase;letter-spacing:2px;
+  border-left:1px solid var(--k3);
+  padding-left:16px;
+  margin-top:2px;
+}
+
+.sys-badge{
+  display:flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:9px;color:var(--lt);
+  text-transform:uppercase;letter-spacing:1.5px;
+}
+
+.pulse-dot{
+  width:5px;height:5px;border-radius:50%;
+  background:var(--w);
+  animation:syspulse 2.4s ease-in-out infinite;
+}
+
+@keyframes syspulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.25;transform:scale(.7)}}
+
+.topbar-clock{
+  font-family:var(--mono);font-size:10px;color:var(--k4);
+  border-right:1px solid var(--k3);
+  padding-right:16px;
+}
+
+.bk-pill{
+  font-family:var(--mono);font-size:11px;color:var(--w);
+  padding:4px 12px;border:1px solid var(--k3);border-radius:2px;
+  cursor:pointer;transition:border-color .2s;
+}
+.bk-pill:hover{border-color:var(--mid)}
+
+/* ═══════════════════════════════════════
+   MAIN GRID
+═══════════════════════════════════════ */
+.main-grid{
+  display:grid;
+  grid-template-columns:288px 1fr 256px;
+  overflow:hidden;
+  height:100%;
+}
+
+@media(max-width:1120px){
+  .main-grid{grid-template-columns:240px 1fr}
+  .right-col{display:none}
+}
+@media(max-width:720px){
+  .main-grid{grid-template-columns:1fr}
+  .left-col{display:none}
+}
+
+/* ═══════════════════════════════════════
+   LEFT COLUMN
+═══════════════════════════════════════ */
+.left-col{
+  border-right:1px solid var(--k2);
+  overflow-y:auto;
+  display:flex;flex-direction:column;
+}
+
+.panel{border-bottom:1px solid var(--k2)}
+
+.panel-hd{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 18px;
+  border-bottom:1px solid var(--k2);
+}
+
+.panel-lbl{
+  font-family:var(--mono);font-size:9px;color:var(--k4);
+  text-transform:uppercase;letter-spacing:2px;
+}
+
+.panel-tag{
+  font-family:var(--mono);font-size:8px;color:var(--k4);
+  border:1px solid var(--k3);padding:2px 7px;border-radius:1px;
+}
+
+/* Bankroll widget */
+.bk-widget{padding:20px 18px}
+
+.bk-num{
+  font-family:var(--serif);
+  font-size:40px;font-weight:900;
+  line-height:1;color:var(--w);
+  letter-spacing:-.03em;
+}
+
+.bk-currency{font-size:22px;color:var(--lt);margin-right:2px}
+
+.bk-delta{
+  font-family:var(--mono);font-size:11px;
+  margin-top:8px;
+}
+.pos{color:var(--w)}
+.neg{color:var(--mid)}
+
+.bk-bar{
+  margin-top:14px;height:1px;
+  background:var(--k3);
+  position:relative;overflow:hidden;
+}
+.bk-bar-fill{
+  position:absolute;left:0;top:0;height:100%;
+  background:var(--w);
+  transition:width .8s var(--ease);
+}
+
+/* Stats grid */
+.stats-4{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:0;
+}
+
+.stat-cell{
+  padding:14px 18px;
+  border-right:1px solid var(--k2);
+  border-bottom:1px solid var(--k2);
+}
+.stat-cell:nth-child(even){border-right:none}
+.stat-cell:nth-last-child(-n+2){border-bottom:none}
+
+.sc-val{
+  font-family:var(--serif);
+  font-size:22px;font-weight:700;
+  color:var(--w);line-height:1;
+}
+
+.sc-lbl{
+  font-family:var(--mono);font-size:9px;color:var(--k4);
+  text-transform:uppercase;letter-spacing:1px;margin-top:5px;
+}
+
+/* Tool list */
+.tool-list{padding:10px 0}
+
+.tool-row{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 18px;
+  transition:background .15s;
+  position:relative;
+}
+
+.tool-row::before{
+  content:'';
+  position:absolute;left:0;top:0;bottom:0;
+  width:2px;background:var(--w);
+  transform:scaleY(0);
+  transition:transform .2s var(--ease);
+  transform-origin:center;
+}
+
+.tool-row.active::before{transform:scaleY(1)}
+.tool-row.active{background:var(--k1)}
+.tool-row.running{background:var(--k2)}
+.tool-row.running .tool-name{color:var(--lt)}
+
+.tool-icon-wrap{
+  width:24px;height:24px;flex-shrink:0;
+  display:grid;place-items:center;
+  opacity:.4;transition:opacity .2s;
+}
+.tool-row.active .tool-icon-wrap,.tool-row.running .tool-icon-wrap{opacity:1}
+
+.tool-name{
+  font-family:var(--mono);font-size:11px;
+  color:var(--k4);
+  transition:color .2s;
+  flex:1;
+}
+.tool-row.active .tool-name{color:var(--w)}
+
+.tool-spinner{
+  width:10px;height:10px;border-radius:50%;
+  border:1px solid var(--k4);border-top-color:var(--w);
+  animation:spin .6s linear infinite;
+  flex-shrink:0;
+}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Behavior alerts */
+.behavior-area{padding:10px 0}
+
+.alert-item{
+  padding:10px 18px;
+  border-left:2px solid transparent;
+  transition:border-color .2s;
+}
+.alert-item.warn{border-color:var(--mid)}
+.alert-item.danger{border-color:var(--w)}
+
+.alert-head{
+  font-family:var(--mono);font-size:9px;font-weight:500;
+  text-transform:uppercase;letter-spacing:1px;
+  color:var(--pale);margin-bottom:4px;
+  display:flex;align-items:center;gap:6px;
+}
+
+.alert-body{
+  font-family:var(--sans);font-size:11px;color:var(--mid);
+  line-height:1.5;
+}
+
+/* Bet history */
+.hist-list{padding:0}
+
+.hist-row{
+  padding:10px 18px;
+  border-bottom:1px solid var(--k2);
+  display:flex;flex-direction:column;gap:4px;
+  transition:background .15s;
+}
+.hist-row:hover{background:var(--k1)}
+.hist-row:last-child{border-bottom:none}
+
+.hr-match{font-family:var(--sans);font-size:12px;color:var(--pale)}
+
+.hr-meta{display:flex;align-items:center;gap:8px}
+
+.hr-tag{
+  font-family:var(--mono);font-size:9px;color:var(--k4);
+}
+
+.hr-result{
+  font-family:var(--mono);font-size:9px;font-weight:500;
+  padding:1px 6px;border:1px solid;border-radius:1px;
+}
+.rw{color:var(--w);border-color:var(--k4)}
+.rl{color:var(--k4);border-color:var(--k3)}
+.rp{color:var(--mid);border-color:var(--k3)}
+
+/* ═══════════════════════════════════════
+   CENTER CHAT
+═══════════════════════════════════════ */
+.chat-col{
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  background:var(--k);
+}
+
+/* Intro screen */
+.intro{
+  padding:56px 48px 32px;
+  flex-shrink:0;
+  border-bottom:1px solid var(--k2);
+}
+
+.intro-eyebrow{
+  font-family:var(--mono);font-size:9px;color:var(--k4);
+  text-transform:uppercase;letter-spacing:3px;
+  margin-bottom:16px;
+  display:flex;align-items:center;gap:10px;
+}
+
+.intro-eyebrow::before{
+  content:'';width:24px;height:1px;background:var(--k4);
+}
+
+.intro-title{
+  font-family:var(--serif);
+  font-size:clamp(32px,4vw,52px);
+  font-weight:900;line-height:1.05;
+  letter-spacing:-.03em;
+  color:var(--w);
+  margin-bottom:16px;
+  max-width:520px;
+}
+
+.intro-title em{
+  font-style:italic;color:var(--pale);
+}
+
+.intro-sub{
+  font-size:13px;color:var(--mid);
+  line-height:1.8;max-width:460px;
+  margin-bottom:24px;
+}
+
+.prompt-chips{
+  display:flex;flex-wrap:wrap;gap:6px;
+}
+
+.chip{
+  font-family:var(--mono);font-size:10px;
+  padding:6px 14px;
+  border:1px solid var(--k3);
+  color:var(--lt);
+  border-radius:1px;
+  transition:all .2s;
+  background:transparent;
+}
+.chip:hover{
+  border-color:var(--w);color:var(--w);
+  background:var(--k2);
+}
+
+/* Chat scroll area */
+.chat-scroll{
+  flex:1;overflow-y:auto;
+  padding:24px 32px;
+  display:flex;flex-direction:column;gap:0;
+}
+
+/* Messages */
+.msg-wrap{
+  margin-bottom:24px;
+  animation:fadeUp .25s ease;
+}
+
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(8px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+.msg-header{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:8px;
+}
+
+.msg-avatar{
+  width:26px;height:26px;border-radius:50%;
+  display:grid;place-items:center;
+  flex-shrink:0;
+}
+
+.av-ai{
+  background:var(--w);
+  font-family:var(--serif);font-size:13px;font-weight:900;
+  color:var(--k);
+}
+
+.av-user{
+  background:var(--k3);
+  border:1px solid var(--k4);
+}
+
+.msg-who{
+  font-family:var(--mono);font-size:9px;
+  text-transform:uppercase;letter-spacing:1.5px;
+  color:var(--k4);
+}
+
+.msg-ts{color:var(--k3);margin-left:4px}
+
+/* AI message body */
+.ai-body{
+  padding-left:36px;
+  font-size:13.5px;line-height:1.8;
+  color:var(--pale);
+}
+
+.ai-body p{margin-bottom:10px}
+.ai-body p:last-child{margin-bottom:0}
+.ai-body strong{color:var(--w);font-weight:600}
+.ai-body em{color:var(--lt);font-style:italic}
+.ai-body code{
+  font-family:var(--mono);font-size:11px;
+  background:var(--k2);padding:1px 6px;border-radius:1px;
+  color:var(--w);
+}
+
+/* User message */
+.user-body{
+  display:flex;justify-content:flex-end;
+  padding-left:48px;
+}
+
+.user-bubble{
+  background:var(--k2);
+  border:1px solid var(--k3);
+  padding:12px 16px;
+  border-radius:1px 1px 1px 8px;
+  font-size:13px;line-height:1.7;
+  color:var(--pale);
+  max-width:560px;
+}
+
+.user-img-preview{
+  width:140px;height:90px;object-fit:cover;
+  border:1px solid var(--k3);border-radius:1px;
+  display:block;margin-top:8px;
+}
+
+/* Tool call block */
+.tool-block{
+  margin:6px 0 6px 36px;
+  border:1px solid var(--k2);
+  border-radius:1px;
+  overflow:hidden;
+}
+
+.tb-head{
+  background:var(--k1);
+  padding:8px 14px;
+  display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid var(--k2);
+}
+
+.tb-icon{width:14px;height:14px;flex-shrink:0;opacity:.6}
+
+.tb-name{
+  font-family:var(--mono);font-size:10px;
+  text-transform:uppercase;letter-spacing:.5px;
+  color:var(--pale);font-weight:500;flex:1;
+}
+
+.tb-status{
+  font-family:var(--mono);font-size:9px;
+  padding:2px 8px;border-radius:1px;
+}
+
+.tb-running{background:var(--k3);color:var(--lt)}
+.tb-done   {background:var(--w);color:var(--k)}
+.tb-error  {background:var(--k2);color:var(--mid);border:1px solid var(--k3)}
+
+.tb-body{
+  padding:10px 14px;
+  font-family:var(--mono);font-size:10px;color:var(--mid);
+  line-height:1.6;max-height:100px;overflow-y:auto;
+}
+
+/* Result cards */
+.result-card{
+  margin:8px 0 8px 36px;
+  border:1px solid var(--k3);
+  border-radius:1px;overflow:hidden;
+}
+
+.rc-head{
+  background:var(--k2);
+  padding:9px 16px;
+  border-bottom:1px solid var(--k3);
+  display:flex;align-items:center;justify-content:space-between;
+}
+
+.rc-title{
+  font-family:var(--mono);font-size:9px;
+  text-transform:uppercase;letter-spacing:1.5px;
+  color:var(--lt);
+}
+
+.rc-meta{
+  font-family:var(--mono);font-size:9px;color:var(--k4);
+}
+
+/* EV table */
+.ev-table{width:100%;border-collapse:collapse}
+
+.ev-table th{
+  padding:7px 16px;
+  font-family:var(--mono);font-size:9px;color:var(--k4);
+  text-transform:uppercase;letter-spacing:1px;
+  text-align:left;
+  border-bottom:1px solid var(--k2);
+  font-weight:400;
+}
+
+.ev-table td{
+  padding:10px 16px;
+  font-size:12px;color:var(--pale);
+  border-bottom:1px solid var(--k2);
+}
+
+.ev-table tr:last-child td{border-bottom:none}
+.ev-table tr:hover td{background:var(--k1)}
+
+.ev-tag{
+  font-family:var(--mono);font-size:9px;font-weight:500;
+  padding:2px 8px;border:1px solid;border-radius:1px;
+}
+.ev-pos{color:var(--w);border-color:var(--k4)}
+.ev-neg{color:var(--k4);border-color:var(--k3)}
+.ev-marg{color:var(--mid);border-color:var(--k3)}
+
+/* Kelly card */
+.kelly-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0}
+
+.k3-cell{
+  padding:14px 16px;border-right:1px solid var(--k3);
+  text-align:center;
+}
+.k3-cell:last-child{border-right:none}
+.k3-cell.featured{background:var(--k1)}
+
+.k3-val{
+  font-family:var(--serif);font-size:22px;font-weight:700;
+  color:var(--w);line-height:1;
+}
+
+.k3-lbl{
+  font-family:var(--mono);font-size:8px;color:var(--k4);
+  text-transform:uppercase;letter-spacing:1px;margin-top:5px;
+}
+
+/* Monte Carlo */
+.mc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+
+.mc-cell{padding:14px 16px;border-right:1px solid var(--k3);text-align:center}
+.mc-cell:last-child{border-right:none}
+
+.mc-val{
+  font-family:var(--serif);font-size:20px;font-weight:700;
+  color:var(--w);
+}
+
+.mc-lbl{
+  font-family:var(--mono);font-size:8px;color:var(--k4);
+  text-transform:uppercase;letter-spacing:1px;margin-top:4px;
+}
+
+/* Parlay breakdown */
+.parlay-legs{display:flex;flex-direction:column}
+
+.pl-leg{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 16px;border-bottom:1px solid var(--k2);
+}
+.pl-leg:last-child{border-bottom:none}
+
+.pl-num{
+  font-family:var(--serif);font-size:16px;font-weight:900;
+  color:var(--k4);width:20px;flex-shrink:0;text-align:center;
+}
+
+.pl-info{flex:1}
+.pl-match{font-size:12px;color:var(--pale)}
+.pl-sub{font-family:var(--mono);font-size:9px;color:var(--k4);margin-top:2px}
+
+.pl-ev{
+  font-family:var(--mono);font-size:11px;
+}
+
+/* Typing indicator */
+.typing{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 0;margin-left:36px;
+}
+
+.ty-dot{
+  width:5px;height:5px;border-radius:50%;
+  background:var(--k4);
+  animation:tyBounce 1.4s ease-in-out infinite;
+}
+.ty-dot:nth-child(2){animation-delay:.2s}
+.ty-dot:nth-child(3){animation-delay:.4s}
+
+@keyframes tyBounce{
+  0%,80%,100%{background:var(--k4);transform:scale(1)}
+  40%{background:var(--pale);transform:scale(1.4)}
+}
+
+/* ═══════════════════════════════════════
+   INPUT BAR
+═══════════════════════════════════════ */
+.input-zone{
+  border-top:1px solid var(--k2);
+  background:rgba(0,0,0,.95);
+  backdrop-filter:blur(20px);
+  padding:16px 24px 20px;
+  flex-shrink:0;
+}
+
+/* Media previews */
+.media-strip{
+  display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;
+}
+
+.m-thumb{
+  position:relative;
+  width:56px;height:56px;border-radius:2px;
+  overflow:hidden;border:1px solid var(--k3);
+  flex-shrink:0;
+}
+
+.m-thumb img{width:100%;height:100%;object-fit:cover}
+
+.m-thumb-doc{
+  width:100%;height:100%;
+  background:var(--k2);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:3px;
+}
+
+.m-thumb-doc svg{opacity:.5}
+
+.m-ext{
+  font-family:var(--mono);font-size:8px;color:var(--k4);
+  text-transform:uppercase;
+}
+
+.m-remove{
+  position:absolute;top:2px;right:2px;
+  width:14px;height:14px;border-radius:50%;
+  background:var(--k);border:1px solid var(--k3);
+  display:grid;place-items:center;
+}
+
+/* Voice waveform */
+.voice-bar{
+  margin-bottom:10px;
+  display:flex;align-items:center;gap:12px;
+  display:none;
+}
+
+.vb-wave{
+  display:flex;align-items:center;gap:3px;flex:1;
+  height:32px;
+}
+
+.vb-bar{
+  width:2px;height:8px;background:var(--w);
+  border-radius:1px;flex-shrink:0;
+  animation:wave .8s ease-in-out infinite;
+}
+
+.vb-bar:nth-child(2){animation-delay:.1s;height:16px}
+.vb-bar:nth-child(3){animation-delay:.2s;height:24px}
+.vb-bar:nth-child(4){animation-delay:.3s;height:28px}
+.vb-bar:nth-child(5){animation-delay:.4s;height:20px}
+.vb-bar:nth-child(6){animation-delay:.5s;height:14px}
+.vb-bar:nth-child(7){animation-delay:.6s;height:22px}
+.vb-bar:nth-child(8){animation-delay:.7s;height:18px}
+.vb-bar:nth-child(9){animation-delay:.8s;height:12px}
+.vb-bar:nth-child(10){animation-delay:.9s;height:20px}
+
+@keyframes wave{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.8)}}
+
+.vb-timer{
+  font-family:var(--mono);font-size:12px;color:var(--lt);
+  width:40px;text-align:right;
+}
+
+.vb-stop{
+  width:28px;height:28px;border-radius:50%;
+  background:var(--w);
+  display:grid;place-items:center;
+  flex-shrink:0;
+}
+
+/* Input row */
+.input-row{
+  display:flex;align-items:flex-end;gap:8px;
+}
+
+.textarea-wrap{
+  flex:1;
+  background:var(--k1);
+  border:1px solid var(--k3);
+  border-radius:2px;
+  padding:11px 14px;
+  transition:border-color .2s;
+  position:relative;
+}
+
+.textarea-wrap:focus-within{border-color:var(--mid)}
+
+textarea#inp{
+  width:100%;background:none;border:none;outline:none;
+  resize:none;
+  font-family:var(--sans);font-size:13px;color:var(--w);
+  line-height:1.6;
+  min-height:22px;max-height:160px;overflow-y:auto;
+}
+
+textarea#inp::placeholder{color:var(--k4)}
+
+.input-btns{display:flex;align-items:center;gap:6px;flex-shrink:0}
+
+.ib{
+  width:36px;height:36px;
+  background:var(--k2);border:1px solid var(--k3);
+  border-radius:2px;
+  display:grid;place-items:center;
+  transition:all .2s;
+}
+
+.ib:hover{border-color:var(--mid);background:var(--k3)}
+.ib:hover svg{opacity:1}
+.ib svg{opacity:.5;transition:opacity .2s}
+
+.ib.recording{
+  border-color:var(--w);background:var(--k2);
+  animation:recBlink 1s infinite;
+}
+
+@keyframes recBlink{0%,100%{border-color:var(--w)}50%{border-color:var(--k3)}}
+
+.send-ib{
+  width:44px;height:44px;
+  background:var(--w);border:none;
+  border-radius:2px;
+  display:grid;place-items:center;
+  transition:all .2s;
+  flex-shrink:0;
+}
+
+.send-ib:hover{background:var(--bone);transform:scale(1.04)}
+.send-ib:disabled{opacity:.3;transform:none}
+
+.input-hint{
+  margin-top:8px;
+  display:flex;align-items:center;gap:10px;
+  font-family:var(--mono);font-size:9px;color:var(--k4);
+}
+
+.ih-sep{color:var(--k3)}
+
+#file-input{display:none}
+
+/* ═══════════════════════════════════════
+   RIGHT COLUMN
+═══════════════════════════════════════ */
+.right-col{
+  border-left:1px solid var(--k2);
+  overflow-y:auto;
+  display:flex;flex-direction:column;
+}
+
+/* Right tabs */
+.rtabs{display:grid;grid-template-columns:1fr 1fr 1fr}
+
+.rtab-btn{
+  padding:11px 0;text-align:center;
+  font-family:var(--mono);font-size:9px;
+  text-transform:uppercase;letter-spacing:1px;
+  color:var(--k4);
+  background:none;border:none;border-bottom:2px solid transparent;
+  transition:all .2s;
+}
+
+.rtab-btn:hover{color:var(--lt)}
+.rtab-btn.on{color:var(--w);border-bottom-color:var(--w)}
+
+.rtab{display:none}
+.rtab.on{display:block}
+
+/* Quick prompts */
+.qp-list{display:flex;flex-direction:column;gap:0}
+
+.qp-btn{
+  display:flex;flex-direction:column;gap:3px;
+  padding:12px 18px;
+  border-bottom:1px solid var(--k2);
+  background:none;border-top:none;border-left:none;border-right:none;
+  text-align:left;
+  transition:background .15s;
+  cursor:pointer;
+}
+
+.qp-btn:hover{background:var(--k1)}
+
+.qp-title{font-family:var(--sans);font-size:12px;color:var(--pale);font-weight:500}
+.qp-sub{font-family:var(--mono);font-size:9px;color:var(--k4)}
+
+/* Log form */
+.log-form{padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+
+.lf-lbl{font-family:var(--mono);font-size:9px;color:var(--k4);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px}
+
+.lf-in,.lf-sel{
+  width:100%;padding:8px 10px;
+  background:var(--k1);border:1px solid var(--k2);
+  border-radius:1px;color:var(--pale);
+  font-family:var(--mono);font-size:11px;
+  outline:none;transition:border-color .2s;
+}
+
+.lf-in:focus,.lf-sel:focus{border-color:var(--mid)}
+
+.lf-sel option{background:var(--k)}
+
+.lf-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+.log-submit{
+  width:100%;padding:10px;
+  background:var(--w);color:var(--k);
+  border:none;border-radius:1px;
+  font-family:var(--mono);font-size:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:1.5px;
+  transition:all .2s;
+}
+
+.log-submit:hover{background:var(--bone)}
+
+/* Settings */
+.settings-body{padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+
+.setting-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+
+.s-name{font-family:var(--mono);font-size:10px;color:var(--lt)}
+
+.s-in{
+  width:72px;padding:5px 8px;text-align:right;
+  background:var(--k1);border:1px solid var(--k2);
+  border-radius:1px;color:var(--w);
+  font-family:var(--mono);font-size:11px;outline:none;
+}
+.s-in:focus{border-color:var(--mid)}
+
+.s-val{font-family:var(--mono);font-size:10px;color:var(--k4)}
+
+.s-divider{height:1px;background:var(--k2);margin:4px 0}
+
+.s-btn{
+  padding:7px 12px;
+  background:transparent;border:1px solid var(--k3);
+  border-radius:1px;
+  font-family:var(--mono);font-size:9px;color:var(--mid);
+  text-transform:uppercase;letter-spacing:1px;
+  transition:all .2s;
+}
+.s-btn:hover{border-color:var(--mid);color:var(--w)}
+
+/* ═══════════════════════════════════════
+   BANKROLL MODAL
+═══════════════════════════════════════ */
+.modal-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.85);
+  display:none;place-items:center;
+  z-index:200;
+  backdrop-filter:blur(8px);
+}
+.modal-overlay.open{display:grid}
+
+.modal-box{
+  background:var(--k1);border:1px solid var(--k3);
+  border-radius:2px;padding:28px;
+  width:min(400px,90vw);
+  animation:modalIn .2s var(--ease);
+}
+
+@keyframes modalIn{
+  from{opacity:0;transform:scale(.96) translateY(8px)}
+  to{opacity:1;transform:scale(1) translateY(0)}
+}
+
+.modal-title{
+  font-family:var(--serif);font-size:22px;font-weight:700;
+  color:var(--w);margin-bottom:6px;
+}
+
+.modal-sub{
+  font-size:12px;color:var(--mid);margin-bottom:20px;line-height:1.6;
+}
+
+.modal-input{
+  width:100%;padding:12px 14px;
+  background:var(--k2);border:1px solid var(--k3);
+  border-radius:1px;color:var(--w);
+  font-family:var(--serif);font-size:28px;
+  outline:none;margin-bottom:16px;
+  transition:border-color .2s;
+}
+.modal-input:focus{border-color:var(--mid)}
+
+.modal-btns{display:flex;gap:8px}
+
+.modal-save{
+  flex:1;padding:11px;
+  background:var(--w);color:var(--k);
+  border:none;border-radius:1px;
+  font-family:var(--mono);font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:1px;
+}
+.modal-save:hover{background:var(--bone)}
+
+.modal-cancel{
+  padding:11px 16px;
+  background:none;border:1px solid var(--k3);
+  border-radius:1px;color:var(--mid);
+  font-family:var(--mono);font-size:11px;
+  text-transform:uppercase;letter-spacing:1px;
+}
+.modal-cancel:hover{border-color:var(--mid)}
+
+/* ═══════════════════════════════════════
+   TOAST
+═══════════════════════════════════════ */
+.toasts{
+  position:fixed;bottom:24px;right:24px;
+  display:flex;flex-direction:column;gap:6px;
+  z-index:300;pointer-events:none;
+}
+
+.toast{
+  background:var(--k1);border:1px solid var(--k3);
+  padding:10px 16px;border-radius:1px;
+  font-family:var(--mono);font-size:11px;color:var(--pale);
+  animation:toastIn .25s var(--ease);
+  box-shadow:0 8px 32px rgba(0,0,0,.6);
+  letter-spacing:.2px;
+}
+
+@keyframes toastIn{
+  from{opacity:0;transform:translateX(16px)}
+  to{opacity:1;transform:translateX(0)}
+}
+
+/* ═══════════════════════════════════════
+   SVG ICON DEFS
+═══════════════════════════════════════ */
+</style>
+</head>
+<body>
+
+<!-- SVG icon sprite -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="ic-ev"       viewBox="0 0 20 20"><path d="M3 10h14M10 3v14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/></symbol>
+  <symbol id="ic-kelly"    viewBox="0 0 20 20"><path d="M4 16L8 8l4 4 4-8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+  <symbol id="ic-scan"     viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M13.5 6.5l-7 7M6.5 6.5l7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="ic-parlay"   viewBox="0 0 20 20"><path d="M4 5h12M4 10h8M4 15h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/><circle cx="16" cy="15" r="2" stroke="currentColor" stroke-width="1.5" fill="none"/></symbol>
+  <symbol id="ic-search"   viewBox="0 0 20 20"><circle cx="9" cy="9" r="5.5" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M13 13l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="ic-eye"      viewBox="0 0 20 20"><path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5" fill="none"/></symbol>
+  <symbol id="ic-chart"    viewBox="0 0 20 20"><path d="M3 16l4-5 4 2 4-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+  <symbol id="ic-risk"     viewBox="0 0 20 20"><path d="M10 3L3 17h14L10 3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="none"/><path d="M10 10v3M10 14.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="ic-brain"    viewBox="0 0 20 20"><path d="M7 3C4 3 3 6 5 8c-2 1-2 4 0 5-1 2 0 4 3 4 1 0 2-.5 2-1.5V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M13 3c3 0 4 3 2 5 2 1 2 4 0 5 1 2 0 4-3 4-1 0-2-.5-2-1.5V8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M10 8V5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="ic-dice"     viewBox="0 0 20 20"><rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="13" cy="13" r="1" fill="currentColor"/><circle cx="10" cy="10" r="1" fill="currentColor"/><circle cx="7" cy="13" r="1" fill="currentColor"/><circle cx="13" cy="7" r="1" fill="currentColor"/></symbol>
+  <symbol id="ic-value"    viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M10 6v8M8 8h3a2 2 0 010 4H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="ic-wallet"   viewBox="0 0 20 20"><rect x="2" y="5" width="16" height="12" rx="2" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M2 9h16" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="15" cy="13.5" r="1" fill="currentColor"/></symbol>
+  <symbol id="ic-attach"   viewBox="0 0 20 20"><path d="M16 10.5l-6 6a4.5 4.5 0 01-6.4-6.3l6-6a3 3 0 014.2 4.2l-6 6a1.5 1.5 0 01-2.1-2.1l5.5-5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="ic-mic"      viewBox="0 0 20 20"><rect x="7" y="2" width="6" height="10" rx="3" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M4 10a6 6 0 0012 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M10 16v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="ic-send"     viewBox="0 0 20 20"><path d="M3 10l14-7-7 14v-7L3 10z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" fill="none"/></symbol>
+  <symbol id="ic-stop"     viewBox="0 0 20 20"><rect x="5" y="5" width="10" height="10" rx="2" fill="currentColor"/></symbol>
+  <symbol id="ic-doc"      viewBox="0 0 20 20"><path d="M5 2h7l5 5v11a1 1 0 01-1 1H5a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M12 2v5h5M7 9h6M7 12h6M7 15h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="ic-x"        viewBox="0 0 12 12"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+  <symbol id="ic-arrow"    viewBox="0 0 20 20"><path d="M4 10h12M10 4l6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></symbol>
+  <symbol id="ic-audio"    viewBox="0 0 20 20"><path d="M12 4a6 6 0 010 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/><path d="M9 7a3 3 0 010 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/><rect x="2" y="8" width="5" height="4" rx="1" fill="currentColor"/><path d="M7 9l2-2M7 11l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></symbol>
+</svg>
+
+<div class="shell">
+
+<!-- ═══════════ TOPBAR ═══════════ -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="wordmark">OPTIM</div>
+    <div class="topbar-tag">Intelligence Engine v3</div>
+  </div>
+  <div class="sys-badge">
+    <div class="pulse-dot"></div>
+    <span>System Active</span>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-clock" id="clk">--:--:--</div>
+    <div class="bk-pill" onclick="openBkModal()">
+      <span id="topbk-val">$1,000.00</span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════ MAIN GRID ═══════════ -->
+<div class="main-grid">
+
+  <!-- LEFT COL -->
+  <div class="left-col">
+
+    <!-- Bankroll -->
+    <div class="panel">
+      <div class="panel-hd">
+        <div class="panel-lbl">Bankroll Tracker</div>
+        <div class="panel-tag" id="roi-tag">ROI —</div>
+      </div>
+      <div class="bk-widget">
+        <div class="bk-num"><span class="bk-currency">$</span><span id="bk-val">1,000.00</span></div>
+        <div class="bk-delta" id="bk-delta">— No bets yet</div>
+        <div class="bk-bar"><div class="bk-bar-fill" id="bk-fill" style="width:100%"></div></div>
+      </div>
+      <div class="stats-4">
+        <div class="stat-cell"><div class="sc-val" id="s-bets">0</div><div class="sc-lbl">Total Bets</div></div>
+        <div class="stat-cell"><div class="sc-val" id="s-wr">—</div><div class="sc-lbl">Win Rate</div></div>
+        <div class="stat-cell"><div class="sc-val" id="s-pl">—</div><div class="sc-lbl">P&amp;L</div></div>
+        <div class="stat-cell"><div class="sc-val" id="s-str">—</div><div class="sc-lbl">Streak</div></div>
+      </div>
+    </div>
+
+    <!-- Agent Tools -->
+    <div class="panel">
+      <div class="panel-hd">
+        <div class="panel-lbl">Agent Tools</div>
+        <div class="panel-tag" id="tools-count">12 available</div>
+      </div>
+      <div class="tool-list" id="tool-list">
+        <div class="tool-row" data-t="ev_calculator">       <div class="tool-icon-wrap"><svg width="14" height="14"><use href="#ic-ev"/></svg></div><div class="tool-name">ev_calculator</div></div>
+        <div class="tool-row" data-t="kelly_optimizer">     <div class="tool-icon-wrap"><svg width="14" height="14"><use href="#ic-kelly"/></svg></div><div class="tool-name">kelly_optimizer</div></div>
+        <div class="tool-row" data-t="market_scanner">      <div class="tool-icon-wrap"><svg width="14" height="14"><use href="#ic-scan"/></svg></div><div class="tool-name">market_scanner</div></div>
+        <div class="tool-row" data-t="parlay_decoder">      <div class="tool-icon-wrap"><svg width="14" height="14"><use href="#ic-parlay"/></svg></div><div class="tool-name">parlay_decoder</div></div>
+        <div class="tool-row" data-t="live_search">         <div class="tool-icon-wrap"><svg width="14" height="14"><use href="#ic-search"/></svg></div><div class="tool-name">live_search</div></div>
+        <div class="tool-row" data-t="image_reader">        <div class="tool-icon-wrap"><svg width="14" height="14"><use href="#ic-eye"/></svg></div><div class="tool-name">image_reader</div></div>
+        <div class="tool-row" data-t="form_analyzer">       <div class="tool-icon-wrap"><svg width="14" height="14"><use href="#ic-chart"/></svg></div><div class="tool-name">form_analyzer</div></div>
+        <div class="tool-row" data-t="risk_engine">         <div class="tool-icon-wrap"><svg width="14" height="14"><use href="#ic-risk"/></svg></div><div class="tool-name">risk_engine</div></div>
+        <div class="tool-row" data-t="behavior_monitor">    <div class="tool-icon-wrap"><svg width="14" height="14"><use href="#ic-brain"/></svg></div><div class="tool-name">behavior_monitor</div></div>
+        <div class="tool-row" data-t="montecarlo_sim">      <div class="tool-icon-wrap"><svg width="14" height="14"><use href="#ic-dice"/></svg></div><div class="tool-name">montecarlo_sim</div></div>
+        <div class="tool-row" data-t="value_detector">      <div class="tool-icon-wrap"><svg width="14" height="14"><use href="#ic-value"/></svg></div><div class="tool-name">value_detector</div></div>
+        <div class="tool-row" data-t="bankroll_advisor">    <div class="tool-icon-wrap"><svg width="14" height="14"><use href="#ic-wallet"/></svg></div><div class="tool-name">bankroll_advisor</div></div>
+      </div>
+    </div>
+
+    <!-- Behavioral -->
+    <div class="panel">
+      <div class="panel-hd">
+        <div class="panel-lbl">Behavioral Monitor</div>
+        <div class="panel-tag" id="bhv-tag">Watching</div>
+      </div>
+      <div class="behavior-area" id="bhv-area">
+        <div style="padding:16px 18px;font-family:var(--mono);font-size:10px;color:var(--k4)">No anomalies detected.</div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="panel" style="flex:1">
+      <div class="panel-hd">
+        <div class="panel-lbl">Bet History</div>
+        <div class="panel-tag" id="hist-tag">0 bets</div>
+      </div>
+      <div class="hist-list" id="hist-list">
+        <div style="padding:20px 18px;font-family:var(--mono);font-size:10px;color:var(--k4)">No bets logged yet.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CENTER CHAT -->
+  <div class="chat-col">
+
+    <!-- Intro -->
+    <div class="intro" id="intro">
+      <div class="intro-eyebrow">Agentic Intelligence System</div>
+      <div class="intro-title">
+        Every bet.<br>
+        <em>Optimised.</em>
+      </div>
+      <div class="intro-sub">
+        Talk naturally. Upload images of your bet slip. Record your voice. OPTIM deploys 12 analytical tools — EV models, Kelly sizing, Monte Carlo simulations, live web intelligence — then synthesises everything into a clear, actionable verdict.
+      </div>
+      <div class="prompt-chips">
+        <button class="chip" onclick="chip('Analyse Chelsea vs Arsenal. Home 2.1, Draw 3.5, Away 3.8. My bankroll is $800')">Analyse a match</button>
+        <button class="chip" onclick="chip('Decode my parlay: Real Madrid 1.65, Man City 1.72, Bayern 1.55 — what are my real odds?')">Decode a parlay</button>
+        <button class="chip" onclick="chip('I think there\'s a 58% chance the home team wins and the odds are 2.40. How much of my $600 bankroll should I bet using Kelly?')">Kelly sizing</button>
+        <button class="chip" onclick="chip('Run a Monte Carlo simulation: 55% win rate, odds 2.0, 5% Kelly, $1000 bankroll, 500 simulations')">Monte Carlo</button>
+        <button class="chip" onclick="chip('I\'ve lost my last 5 bets in a row. Am I tilting? What should I do?')">Behaviour check</button>
+        <button class="chip" onclick="chip('Scan these odds for hidden value and bookmaker margin: Home 1.95 Draw 3.40 Away 4.20')">Scan odds</button>
+      </div>
+    </div>
+
+    <!-- Chat messages -->
+    <div class="chat-scroll" id="chat-scroll"></div>
+
+    <!-- Input zone -->
+    <div class="input-zone">
+      <!-- Media previews -->
+      <div class="media-strip" id="media-strip" style="display:none"></div>
+
+      <!-- Voice recording bar -->
+      <div class="voice-bar" id="voice-bar">
+        <div class="vb-wave">
+          <div class="vb-bar"></div><div class="vb-bar"></div><div class="vb-bar"></div>
+          <div class="vb-bar"></div><div class="vb-bar"></div><div class="vb-bar"></div>
+          <div class="vb-bar"></div><div class="vb-bar"></div><div class="vb-bar"></div>
+          <div class="vb-bar"></div>
+        </div>
+        <div class="vb-timer" id="vb-timer">0:00</div>
+        <button class="vb-stop" onclick="stopRecording()" title="Stop recording">
+          <svg width="10" height="10"><use href="#ic-stop" style="color:#000"/></svg>
+        </button>
+      </div>
+
+      <!-- Input row -->
+      <div class="input-row">
+        <div class="textarea-wrap">
+          <textarea id="inp" placeholder="Describe your bet, paste odds, ask anything…" rows="1"></textarea>
+        </div>
+        <div class="input-btns">
+          <button class="ib" onclick="document.getElementById('file-input').click()" title="Attach image or file">
+            <svg width="16" height="16"><use href="#ic-attach" style="color:#fff"/></svg>
+          </button>
+          <button class="ib" id="mic-btn" onclick="toggleRecording()" title="Voice input">
+            <svg width="16" height="16"><use href="#ic-mic" style="color:#fff"/></svg>
+          </button>
+          <button class="send-ib" id="send-btn" onclick="send()">
+            <svg width="16" height="16"><use href="#ic-send" style="color:#000"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="input-hint">
+        <span>Images &amp; audio supported</span><span class="ih-sep">·</span>
+        <span>12 adaptive tools</span><span class="ih-sep">·</span>
+        <span>mistral-large + voxtral + vision</span><span class="ih-sep">·</span>
+        <span>No account needed</span>
+      </div>
+      <input type="file" id="file-input" multiple accept="image/*,.pdf,.txt,.csv,audio/*" onchange="onFiles(event)">
+    </div>
+  </div>
+
+  <!-- RIGHT COL -->
+  <div class="right-col">
+
+    <div class="rtabs">
+      <button class="rtab-btn on" onclick="rTab('prompts')">Quick</button>
+      <button class="rtab-btn" onclick="rTab('log')">Log Bet</button>
+      <button class="rtab-btn" onclick="rTab('settings')">Config</button>
+    </div>
+
+    <!-- Quick prompts -->
+    <div class="rtab on" id="rt-prompts">
+      <div class="qp-list">
+        <button class="qp-btn" onclick="chip('What is the Kelly Criterion? Give me a full explanation with examples.')">
+          <div class="qp-title">Kelly Criterion Guide</div>
+          <div class="qp-sub">Full explanation + examples</div>
+        </button>
+        <button class="qp-btn" onclick="chip('Explain expected value in betting. How do I calculate EV and what makes a bet positive EV?')">
+          <div class="qp-title">EV Deep Dive</div>
+          <div class="qp-sub">How to find profitable bets</div>
+        </button>
+        <button class="qp-btn" onclick="chip('What are the biggest psychological biases in sports betting and how do professional bettors avoid them?')">
+          <div class="qp-title">Bettor Psychology</div>
+          <div class="qp-sub">Cognitive bias analysis</div>
+        </button>
+        <button class="qp-btn" onclick="chip('Compare flat betting vs proportional betting vs full Kelly vs fractional Kelly. Which is best for my situation?')">
+          <div class="qp-title">Staking Systems</div>
+          <div class="qp-sub">Strategy comparison</div>
+        </button>
+        <button class="qp-btn" onclick="chip('How do bookmakers set odds? Where do they hide their margin and how can I exploit their pricing errors?')">
+          <div class="qp-title">Bookmaker Intelligence</div>
+          <div class="qp-sub">How they price, where to find edge</div>
+        </button>
+        <button class="qp-btn" onclick="chip('Analyse my recent betting history and give me a full assessment of my performance, style, and areas to improve.')">
+          <div class="qp-title">Performance Audit</div>
+          <div class="qp-sub">Full history analysis</div>
+        </button>
+        <button class="qp-btn" onclick="chip('What is variance in sports betting and how do I calculate the probability of a losing streak at my win rate?')">
+          <div class="qp-title">Variance &amp; Risk</div>
+          <div class="qp-sub">Statistical risk modelling</div>
+        </button>
+        <button class="qp-btn" onclick="chip('Is there value in each-way betting in horse racing? How do I calculate the EV of the place portion?')">
+          <div class="qp-title">Each-Way Analysis</div>
+          <div class="qp-sub">Horse racing specialty</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Log bet -->
+    <div class="rtab" id="rt-log">
+      <div class="log-form">
+        <div>
+          <div class="lf-lbl">Match / Event</div>
+          <input class="lf-in" id="lf-match" placeholder="e.g. Arsenal vs Chelsea"/>
+        </div>
+        <div>
+          <div class="lf-lbl">Market / Selection</div>
+          <input class="lf-in" id="lf-mkt" placeholder="e.g. Home Win, Over 2.5"/>
+        </div>
+        <div class="lf-row">
+          <div>
+            <div class="lf-lbl">Odds</div>
+            <input class="lf-in" id="lf-odds" type="number" step="0.01" placeholder="2.10"/>
+          </div>
+          <div>
+            <div class="lf-lbl">Stake ($)</div>
+            <input class="lf-in" id="lf-stake" type="number" placeholder="50"/>
+          </div>
+        </div>
+        <div>
+          <div class="lf-lbl">Result</div>
+          <select class="lf-sel" id="lf-result">
+            <option value="pending">Pending</option>
+            <option value="win">Win</option>
+            <option value="loss">Loss</option>
+            <option value="void">Void</option>
+          </select>
+        </div>
+        <button class="log-submit" onclick="logBet()">Log Bet</button>
+      </div>
+    </div>
+
+    <!-- Settings / config -->
+    <div class="rtab" id="rt-settings">
+      <div class="settings-body">
+        <div class="setting-row">
+          <div class="s-name">Starting bankroll</div>
+          <input class="s-in" id="cfg-bk" type="number" value="1000" onchange="cfgBk()"/>
+        </div>
+        <div class="setting-row">
+          <div class="s-name">Kelly fraction</div>
+          <input class="s-in" id="cfg-kelly" type="number" step="0.05" value="0.25" min="0.05" max="1"/>
+        </div>
+        <div class="setting-row">
+          <div class="s-name">Max bet %</div>
+          <input class="s-in" id="cfg-maxbet" type="number" value="5" step="1"/>
+        </div>
+        <div class="setting-row">
+          <div class="s-name">Currency symbol</div>
+          <input class="s-in" id="cfg-cur" type="text" value="$" style="width:48px"/>
+        </div>
+        <div class="s-divider"></div>
+        <div class="setting-row">
+          <div class="s-name">Vision model</div>
+          <div class="s-val">mistral-small</div>
+        </div>
+        <div class="setting-row">
+          <div class="s-name">Audio model</div>
+          <div class="s-val">voxtral-mini</div>
+        </div>
+        <div class="setting-row">
+          <div class="s-name">Analysis model</div>
+          <div class="s-val">mistral-large</div>
+        </div>
+        <div class="s-divider"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="s-btn" onclick="exportData()">Export JSON</button>
+          <button class="s-btn" onclick="clearHistory()">Clear History</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</div>
+
+<!-- Bankroll modal -->
+<div class="modal-overlay" id="bk-modal">
+  <div class="modal-box">
+    <div class="modal-title">Set Bankroll</div>
+    <div class="modal-sub">Enter your current bankroll. This is used for Kelly stake calculations and P&amp;L tracking.</div>
+    <input class="modal-input" id="bk-modal-in" type="number" placeholder="1000"/>
+    <div class="modal-btns">
+      <button class="modal-save" onclick="saveBk()">Save</button>
+      <button class="modal-cancel" onclick="closeBkModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div class="toasts" id="toasts"></div>
+
+<!-- ═══════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════ -->
+<script>
+/* ─── KEYS ─── */
+const MK = "yjvknUyDmAP6SKLQAUtqM5FH65cP69Id";
+const TK = "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";
+
+/* ─── STATE ─── */
+let S = {
+  bankroll: 1000, startBk: 1000,
+  bets: [], history: [],   // chat history for Mistral
+  media: [],               // pending attachments
+  busy: false,
+  mediaRecorder: null, audioChunks: [], recTimer: null, recSecs: 0,
+};
+
+(()=>{
+  try{
+    const d = JSON.parse(localStorage.getItem('optim3')||'{}');
+    if(d.bankroll) S.bankroll = d.bankroll;
+    if(d.startBk)  S.startBk  = d.startBk;
+    if(d.bets)     S.bets     = d.bets;
+  }catch(e){}
+})();
+
+const save = () => {
+  try{ localStorage.setItem('optim3', JSON.stringify({bankroll:S.bankroll, startBk:S.startBk, bets:S.bets})); }catch(e){}
+};
+
+/* ─── CLOCK ─── */
+setInterval(()=>{ document.getElementById('clk').textContent = new Date().toLocaleTimeString('en-GB'); }, 1000);
+
+/* ─── TOAST ─── */
+function toast(msg){
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>el.remove(), 3200);
+}
+
+/* ─── TEXTAREA AUTO-RESIZE ─── */
+const inp = document.getElementById('inp');
+inp.addEventListener('input', ()=>{
+  inp.style.height='auto';
+  inp.style.height = Math.min(inp.scrollHeight, 160)+'px';
+});
+inp.addEventListener('keydown', e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(); } });
+
+/* ─── RIGHT TABS ─── */
+function rTab(name){
+  document.querySelectorAll('.rtab-btn').forEach((b,i)=>b.classList.remove('on'));
+  document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('on'));
+  const idx = ['prompts','log','settings'].indexOf(name);
+  document.querySelectorAll('.rtab-btn')[idx].classList.add('on');
+  document.getElementById('rt-'+name).classList.add('on');
+}
+
+/* ─── BANKROLL MODAL ─── */
+function openBkModal(){ document.getElementById('bk-modal').classList.add('open'); document.getElementById('bk-modal-in').value = S.bankroll; }
+function closeBkModal(){ document.getElementById('bk-modal').classList.remove('open'); }
+function saveBk(){
+  const v = parseFloat(document.getElementById('bk-modal-in').value);
+  if(v>0){ S.bankroll=v; S.startBk=v; save(); updateUI(); closeBkModal(); toast('Bankroll updated'); }
+}
+function cfgBk(){
+  const v = parseFloat(document.getElementById('cfg-bk').value);
+  if(v>0){ S.bankroll=v; S.startBk=v; save(); updateUI(); }
+}
+
+document.getElementById('bk-modal').addEventListener('click', function(e){ if(e.target===this) closeBkModal(); });
+
+/* ─── TOOL STATE ─── */
+function toolState(name, state){
+  document.querySelectorAll('.tool-row').forEach(r=>{
+    if(r.dataset.t===name){
+      r.classList.remove('active','running');
+      if(state==='running') r.classList.add('running');
+      if(state==='active')  r.classList.add('active');
+      // spinner
+      let sp = r.querySelector('.tool-spinner');
+      if(state==='running' && !sp){ sp=document.createElement('div'); sp.className='tool-spinner'; r.appendChild(sp); }
+      if(state!=='running' && sp) sp.remove();
+    }
+  });
+}
+function resetTools(){ document.querySelectorAll('.tool-row').forEach(r=>{ r.classList.remove('active','running'); r.querySelector('.tool-spinner')?.remove(); }); }
+
+/* ─── FILE HANDLING ─── */
+async function onFiles(e){
+  const files = Array.from(e.target.files);
+  for(const f of files){
+    if(f.type.startsWith('audio/')){
+      // Convert audio file via Voxtral
+      toast('Transcribing audio with Voxtral…');
+      const text = await transcribeAudioFile(f);
+      inp.value += (inp.value ? ' ' : '') + text;
+      inp.dispatchEvent(new Event('input'));
+      toast('Audio transcribed');
+    } else if(f.type.startsWith('image/')){
+      const b64 = await toB64(f);
+      S.media.push({ kind:'image', data:b64, mime:f.type, name:f.name, preview:URL.createObjectURL(f) });
+    } else {
+      const txt = await f.text();
+      S.media.push({ kind:'text', data:txt, name:f.name, mime:f.type });
+    }
+  }
+  renderStrip();
+  e.target.value='';
+}
+
+function toB64(file){
+  return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.readAsDataURL(file); });
+}
+
+function renderStrip(){
+  const strip = document.getElementById('media-strip');
+  if(!S.media.length){ strip.style.display='none'; strip.innerHTML=''; return; }
+  strip.style.display='flex';
+  strip.innerHTML = S.media.map((m,i)=>`
+    <div class="m-thumb">
+      ${m.kind==='image'
+        ? `<img src="${m.preview}" alt="${m.name}">`
+        : `<div class="m-thumb-doc"><svg width="20" height="20"><use href="#ic-doc" style="color:#fff"/></svg><div class="m-ext">${m.name.split('.').pop()}</div></div>`
+      }
+      <button class="m-remove" onclick="removeMedia(${i})">
+        <svg width="8" height="8"><use href="#ic-x" style="color:#fff"/></svg>
+      </button>
+    </div>`).join('');
+}
+
+function removeMedia(i){ S.media.splice(i,1); renderStrip(); }
+
+/* ─── AUDIO TRANSCRIPTION VIA VOXTRAL ─── */
+async function transcribeAudioFile(file){
+  const form = new FormData();
+  form.append('file', file, file.name);
+  form.append('model', 'voxtral-mini-latest');
+  try {
+    const r = await fetch('https://api.mistral.ai/v1/audio/transcriptions', {
+      method:'POST',
+      headers:{ 'Authorization':`Bearer ${MK}` },
+      body: form
+    });
+    const d = await r.json();
+    return d.text || '[transcription empty]';
+  } catch(e){
+    return '[audio transcription failed]';
+  }
+}
+
+/* ─── VOICE RECORDING ─── */
+let recStream = null;
+
+async function toggleRecording(){
+  if(S.mediaRecorder && S.mediaRecorder.state==='recording'){ stopRecording(); return; }
+
+  try {
+    recStream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    S.audioChunks = [];
+    S.mediaRecorder = new MediaRecorder(recStream, { mimeType:'audio/webm' });
+
+    S.mediaRecorder.ondataavailable = e=>{ if(e.data.size>0) S.audioChunks.push(e.data); };
+
+    S.mediaRecorder.onstop = async ()=>{
+      const blob = new Blob(S.audioChunks, { type:'audio/webm' });
+      const file = new File([blob], 'voice.webm', { type:'audio/webm' });
+      toast('Transcribing voice with Voxtral…');
+      const text = await transcribeAudioFile(file);
+      if(text && text !== '[audio transcription failed]'){
+        inp.value += (inp.value ? ' ' : '') + text;
+        inp.dispatchEvent(new Event('input'));
+        toast('Voice transcribed');
+      } else {
+        toast('Transcription failed — try again');
+      }
+      recStream.getTracks().forEach(t=>t.stop());
+    };
+
+    S.mediaRecorder.start();
+    S.recSecs = 0;
+    document.getElementById('voice-bar').style.display='flex';
+    document.getElementById('mic-btn').classList.add('recording');
+    S.recTimer = setInterval(()=>{
+      S.recSecs++;
+      const m = Math.floor(S.recSecs/60), s = S.recSecs%60;
+      document.getElementById('vb-timer').textContent = `${m}:${s.toString().padStart(2,'0')}`;
+      if(S.recSecs >= 60) stopRecording(); // auto-stop at 60s
+    }, 1000);
+
+  } catch(e){
+    toast('Microphone access denied');
+  }
+}
+
+function stopRecording(){
+  if(S.mediaRecorder && S.mediaRecorder.state==='recording'){
+    S.mediaRecorder.stop();
+    clearInterval(S.recTimer);
+    document.getElementById('voice-bar').style.display='none';
+    document.getElementById('mic-btn').classList.remove('recording');
+    document.getElementById('vb-timer').textContent='0:00';
+  }
+}
+
+/* ─── CHIP PROMPT ─── */
+function chip(text){ inp.value=text; inp.dispatchEvent(new Event('input')); send(); }
+
+/* ─── DOM HELPERS ─── */
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function fmt(text){
+  return text
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/^#{1,3} (.+)$/gm,'<strong style="display:block;font-size:14px;margin:12px 0 4px">$1</strong>')
+    .split(/\n\n+/).map(p=>`<p>${p.replace(/\n/g,'<br>')}</p>`).join('');
+}
+
+function ts(){ return new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); }
+
+function scrollChat(){ const c=document.getElementById('chat-scroll'); c.scrollTop=c.scrollHeight; }
+
+function hideIntro(){ const el=document.getElementById('intro'); if(el){ el.style.display='none'; } }
+
+/* ─── APPEND MESSAGES ─── */
+function appendUser(text, mediaItems){
+  hideIntro();
+  const c = document.getElementById('chat-scroll');
+  const wrap = document.createElement('div'); wrap.className='msg-wrap';
+  const mediaHtml = (mediaItems||[]).filter(m=>m.kind==='image')
+    .map(m=>`<img class="user-img-preview" src="${m.preview}" alt="${m.name}">`).join('');
+  wrap.innerHTML=`
+    <div class="msg-header" style="justify-content:flex-end">
+      <div class="msg-who">You <span class="msg-ts">${ts()}</span></div>
+      <div class="msg-avatar av-user">
+        <svg width="12" height="12"><use href="#ic-arrow" style="color:#fff"/></svg>
+      </div>
+    </div>
+    <div class="user-body">
+      <div class="user-bubble">${text ? esc(text) : '<em style="opacity:.4">Attached media</em>'}${mediaHtml}</div>
+    </div>`;
+  c.appendChild(wrap); scrollChat();
+}
+
+function appendToolCall(name, status, output){
+  const c = document.getElementById('chat-scroll');
+  const div=document.createElement('div'); div.className='msg-wrap';
+  const icons={ev_calculator:'ic-ev',kelly_optimizer:'ic-kelly',market_scanner:'ic-scan',parlay_decoder:'ic-parlay',live_search:'ic-search',image_reader:'ic-eye',form_analyzer:'ic-chart',risk_engine:'ic-risk',behavior_monitor:'ic-brain',montecarlo_sim:'ic-dice',value_detector:'ic-value',bankroll_advisor:'ic-wallet'};
+  const icon = icons[name]||'ic-arrow';
+  div.innerHTML=`
+    <div class="tool-block">
+      <div class="tb-head">
+        <svg class="tb-icon" width="14" height="14"><use href="#${icon}" style="color:#fff"/></svg>
+        <div class="tb-name">${name}</div>
+        <div class="tb-status ${status==='running'?'tb-running':status==='done'?'tb-done':'tb-error'}">${status==='running'?'running…':status==='done'?'done':'error'}</div>
+      </div>
+      ${output?`<div class="tb-body">${esc(output)}</div>`:''}
+    </div>`;
+  c.appendChild(div); scrollChat();
+  return div;
+}
+
+function appendTyping(){
+  hideIntro();
+  const c = document.getElementById('chat-scroll');
+  const div=document.createElement('div'); div.className='msg-wrap'; div.id='typing-el';
+  div.innerHTML=`
+    <div class="msg-header">
+      <div class="msg-avatar av-ai">O</div>
+      <div class="msg-who">OPTIM</div>
+    </div>
+    <div class="typing"><div class="ty-dot"></div><div class="ty-dot"></div><div class="ty-dot"></div></div>`;
+  c.appendChild(div); scrollChat();
+}
+
+function removeTyping(){ document.getElementById('typing-el')?.remove(); }
+
+function appendAI(html, cards){
+  const c = document.getElementById('chat-scroll');
+  const wrap=document.createElement('div'); wrap.className='msg-wrap';
+  wrap.innerHTML=`
+    <div class="msg-header">
+      <div class="msg-avatar av-ai">O</div>
+      <div class="msg-who">OPTIM <span class="msg-ts">${ts()}</span></div>
+    </div>
+    <div class="ai-body">${html}</div>`;
+  c.appendChild(wrap);
+  if(cards){
+    const cardDiv=document.createElement('div'); cardDiv.innerHTML=cards;
+    c.appendChild(cardDiv);
+  }
+  scrollChat();
+}
+
+/* ─── MATH ENGINE ─── */
+const Math2 = {
+  vig(h,d,a){ const t=1/h+1/d+1/a; return {h:1/h/t, d:1/d/t, a:1/a/t, margin:((t-1)*100).toFixed(2), t}; },
+  ev(p,o){ return p*(o-1)-(1-p); },
+  kelly(p,o,f){ const b=o-1,q=1-p,k=Math.max(0,(p*b-q)/b); return {full:k,frac:k*f}; },
+  mc(p,o,pct,bk,n){
+    const res=[];
+    for(let r=0;r<n;r++){
+      let b=bk;
+      for(let i=0;i<50;i++){
+        const s=b*(pct/100);
+        b += Math.random()<p ? s*(o-1) : -s;
+        b=Math.max(0,b);
+      }
+      res.push(b);
+    }
+    res.sort((a,b)=>a-b);
+    return {best:res[Math.floor(n*.9)].toFixed(0),likely:res[Math.floor(n*.5)].toFixed(0),worst:res[Math.floor(n*.1)].toFixed(0),ruin:(res.filter(x=>x<=0).length/n*100).toFixed(1)};
+  },
+};
+
+/* ─── LIVE SEARCH ─── */
+async function tavily(q){
+  try{
+    const r=await fetch('https://api.tavily.com/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:TK,query:q,search_depth:'basic',max_results:4,include_answer:true})});
+    const d=await r.json();
+    let out='';
+    if(d.answer) out+=`Answer: ${d.answer}\n\n`;
+    (d.results||[]).slice(0,4).forEach(x=>{ out+=`• ${x.title}: ${(x.content||'').slice(0,200)}\n`; });
+    return out||'No results found.';
+  }catch(e){ return `Search unavailable: ${e.message}`; }
+}
+
+/* ─── MISTRAL ─── */
+async function callMistral(messages, model, hasImages){
+  // vision: mistral-small-latest supports images natively
+  const m = hasImages ? 'mistral-small-latest' : model || 'mistral-large-latest';
+  const r = await fetch('https://api.mistral.ai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Authorization':`Bearer ${MK}`,'Content-Type':'application/json'},
+    body:JSON.stringify({model:m, messages, max_tokens:2048, temperature:0.25})
+  });
+  if(!r.ok){ const e=await r.json(); throw new Error(e.message||r.status); }
+  const d=await r.json();
+  return d.choices?.[0]?.message?.content||'';
+}
+
+/* ─── TOOL ROUTER ─── */
+async function decideTools(msg){
+  const r=await callMistral([{role:'user',content:`
+You are an agentic betting assistant dispatcher. Based on the user message, decide which tools to run (0-12 max).
+
+Tools: ev_calculator, kelly_optimizer, market_scanner, parlay_decoder, live_search, image_reader, form_analyzer, risk_engine, behavior_monitor, montecarlo_sim, value_detector, bankroll_advisor
+
+Also always make sure you search current date time(year,month,day,time)
+Rules:
+- ev_calculator: user mentions odds (multiple numbers like 2.1 3.5 4.2)
+- kelly_optimizer: user mentions probability + odds + bankroll/stake
+- market_scanner: user wants to find value or scan odds
+- parlay_decoder: user mentions parlay, accumulator, multiple bets combined
+- live_search: user asks about specific teams, recent news, form, injuries
+- image_reader: user attached an image (marked in msg)
+- form_analyzer: user asks about team form, recent results, head-to-head
+- risk_engine: user asks about risk assessment, or mentions a specific stake amount
+- behavior_monitor: user mentions losing streak, tilt, emotional, consecutive losses
+- montecarlo_sim: user explicitly asks about simulation, variance, long-term outcomes
+- value_detector: user asks to find value or compare odds markets
+- bankroll_advisor: user asks about their overall bankroll, performance review
+
+User message: "${msg}"
+
+Return ONLY a JSON array of tool names. Example: ["ev_calculator","kelly_optimizer"]
+Return [] if no tools needed.`}],'mistral-small-latest',false);
+  try{ const m=r.match(/\[[\s\S]*?\]/); return m?JSON.parse(m[0]):[];  }catch(e){ return []; }
+}
+
+/* ─── EXTRACT PARAMS ─── */
+function extract(msg){
+  const nums = (msg.match(/\b\d+\.?\d*\b/g)||[]).map(Number).filter(n=>n>1&&n<50);
+  const pct  = msg.match(/(\d+\.?\d*)\s*%/);
+  const money= msg.match(/\$(\d[\d,]*(?:\.\d+)?)/);
+  return {
+    odds:  nums.slice(0,3),
+    prob:  pct  ? parseFloat(pct[1])/100   : null,
+    money: money? parseFloat(money[1].replace(',','')) : null,
+  };
+}
+
+/* ─── RUN TOOL ─── */
+async function runTool(name, msg, p){
+  const kf = parseFloat(document.getElementById('cfg-kelly').value)||0.25;
+  const bk = S.bankroll;
+  switch(name){
+    case 'ev_calculator': {
+      if(p.odds.length<2) return {error:'Need at least 2 odds values'};
+      const [h,d,a] = p.odds.length>=3 ? p.odds : [p.odds[0], null, p.odds[1]];
+      if(a){
+        const v = Math2.vig(h,d,a);
+        const evH=Math2.ev(v.h,h), evD=Math2.ev(v.d,d), evA=Math2.ev(v.a,a);
+        return {home_odds:h,draw_odds:d,away_odds:a,margin:v.margin,evH,evD,evA,modelH:v.h,modelD:v.d,modelA:v.a,implH:v.h,implD:v.d,implA:v.a};
+      }
+      return {error:'Need 3 odds for 1X2 EV'};
+    }
+    case 'kelly_optimizer': {
+      const prob = p.prob || 0.55;
+      const odds = p.odds[0] || 2.0;
+      const k = Math2.kelly(prob, odds, kf);
+      return {prob, odds, full_pct:(k.full*100).toFixed(1), frac_pct:(k.frac*100).toFixed(1), stake_full:(k.full*bk).toFixed(2), stake_frac:(k.frac*bk).toFixed(2), stake_conservative:(k.frac*0.5*bk).toFixed(2), fraction:kf};
+    }
+    case 'market_scanner': {
+      if(p.odds.length<3) return {info:'No odds detected — performing general analysis'};
+      const [h,d,a]=p.odds;
+      const v = Math2.vig(h,d,a);
+      return {margin:v.margin, home_implied:(v.h*100).toFixed(1), draw_implied:(v.d*100).toFixed(1), away_implied:(v.a*100).toFixed(1), fairness:parseFloat(v.margin)<5?'TIGHT':'WIDE'};
+    }
+    case 'parlay_decoder': {
+      if(p.odds.length<2) return {error:'Need 2+ odds for parlay'};
+      const legs = p.odds.slice(0,6);
+      const combined = legs.reduce((a,o)=>a*o, 1);
+      const trueP    = legs.reduce((a,o)=>a*(1/o*.95),1);
+      const implP    = 1/combined;
+      const ev       = Math2.ev(trueP, combined);
+      return {legs, combined_odds:combined.toFixed(2), true_prob:(trueP*100).toFixed(2), implied_prob:(implP*100).toFixed(2), ev:(ev*100).toFixed(2), ev_pos:ev>0};
+    }
+    case 'live_search': {
+      const data = await tavily(msg.replace(/^(search|find|look up)/i,'').trim());
+      return {data};
+    }
+    case 'form_analyzer': {
+      const data = await tavily(msg + ' recent form results 2025');
+      return {data};
+    }
+    case 'risk_engine': {
+      const stake = p.money || 50;
+      const pct   = (stake/bk*100).toFixed(1);
+      const flags = [];
+      if(stake/bk>0.1)   flags.push('Stake exceeds 10% of bankroll');
+      if(p.odds[0]>5)    flags.push('High variance bet (odds > 5.0)');
+      const recentLoss = S.bets.slice(0,3).filter(b=>b.result==='loss').length;
+      if(recentLoss>=3)  flags.push('3 consecutive losses — tilt risk');
+      return {stake, pct_of_bankroll:pct, flags, verdict:flags.length>1?'AVOID':flags.length===1?'CAUTION':'CLEAR'};
+    }
+    case 'behavior_monitor': {
+      const res = checkBehavior();
+      renderBehavior(res);
+      return {patterns:res.length, details:res.map(r=>r.title).join(', ')||'None'};
+    }
+    case 'montecarlo_sim': {
+      const prob  = p.prob || 0.52;
+      const odds  = p.odds[0] || 2.0;
+      const pct   = parseFloat(document.getElementById('cfg-maxbet').value)||5;
+      const res   = Math2.mc(prob, odds, pct, bk, 500);
+      return {...res, bankroll:bk, stake_pct:pct, simulations:500};
+    }
+    case 'value_detector': {
+      if(p.odds.length<3) return {info:'No 3-way odds detected'};
+      const [h,d,a]=p.odds;
+      const v=Math2.vig(h,d,a);
+      const best=[{m:'Home',o:h,p:v.h},{m:'Draw',o:d,p:v.d},{m:'Away',o:a,p:v.a}].sort((a,b)=>b.o-a.o)[0];
+      return {margin:v.margin, best_market:best.m, best_odds:best.o, note:parseFloat(v.margin)<5?'Low margin — shop is competitive':'High margin — look elsewhere'};
+    }
+    case 'bankroll_advisor': {
+      const resolved=S.bets.filter(b=>b.result==='win'||b.result==='loss');
+      const totalStake=resolved.reduce((s,b)=>s+b.stake,0);
+      const pl=S.bets.filter(b=>b.result==='win').reduce((s,b)=>s+b.stake*(b.odds-1),0)
+              -S.bets.filter(b=>b.result==='loss').reduce((s,b)=>s+b.stake,0);
+      const roi=totalStake>0?(pl/totalStake*100).toFixed(1):null;
+      return {total_bets:S.bets.length,current_pl:pl.toFixed(2),roi_pct:roi,current_bankroll:bk.toFixed(2),start_bankroll:S.startBk.toFixed(2)};
+    }
+    case 'image_reader':
+      return {note:'Image processed by mistral-small vision'};
+    default:
+      return {error:`Unknown tool: ${name}`};
+  }
+}
+
+/* ─── BUILD RESULT CARDS ─── */
+function buildCards(results){
+  let html='';
+  results.forEach(({tool,result})=>{
+    if(result.error) return;
+
+    if(tool==='ev_calculator' && result.evH!==undefined){
+      const rows=[
+        {m:'Home Win', o:result.home_odds, model:(result.modelH*100).toFixed(1), impl:(result.implH*100).toFixed(1), ev:result.evH},
+        {m:'Draw',     o:result.draw_odds, model:(result.modelD*100).toFixed(1), impl:(result.implD*100).toFixed(1), ev:result.evD},
+        {m:'Away Win', o:result.away_odds, model:(result.modelA*100).toFixed(1), impl:(result.implA*100).toFixed(1), ev:result.evA},
+      ];
+      html+=`<div class="result-card">
+        <div class="rc-head"><div class="rc-title">Expected Value Analysis</div><div class="rc-meta">Margin ${result.margin}%</div></div>
+        <table class="ev-table">
+          <thead><tr><th>Market</th><th>Odds</th><th>Model %</th><th>Implied %</th><th>EV</th><th>Signal</th></tr></thead>
+          <tbody>${rows.map(r=>`<tr>
+            <td>${r.m}</td>
+            <td style="font-family:var(--mono)">${r.o}</td>
+            <td style="font-family:var(--mono);color:var(--w)">${r.model}%</td>
+            <td style="font-family:var(--mono)">${r.impl}%</td>
+            <td><span class="ev-tag ${r.ev>0.03?'ev-pos':r.ev<0?'ev-neg':'ev-marg'}">${r.ev>0?'+':''}${(r.ev*100).toFixed(2)}%</span></td>
+            <td style="font-family:var(--mono);font-size:10px;color:var(--k4)">${r.ev>0.06?'STRONG VALUE':r.ev>0.02?'VALUE':r.ev>0?'MARGINAL':'SKIP'}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+    }
+
+    if(tool==='kelly_optimizer' && result.stake_frac){
+      html+=`<div class="result-card">
+        <div class="rc-head"><div class="rc-title">Kelly Stake Sizing</div><div class="rc-meta">${(result.fraction*100).toFixed(0)}% Kelly fraction</div></div>
+        <div class="kelly-3">
+          <div class="k3-cell"><div class="k3-val">$${result.stake_full}</div><div class="k3-lbl">Full Kelly</div></div>
+          <div class="k3-cell featured"><div class="k3-val">$${result.stake_frac}</div><div class="k3-lbl">Recommended</div></div>
+          <div class="k3-cell"><div class="k3-val">$${result.stake_conservative}</div><div class="k3-lbl">Conservative</div></div>
+        </div>
+        <div style="padding:10px 16px;font-family:var(--mono);font-size:9px;color:var(--k4)">
+          Bankroll allocation: ${result.frac_pct}% · ${result.prob?`Model probability: ${(result.prob*100).toFixed(0)}%`:''}
+        </div>
+      </div>`;
+    }
+
+    if(tool==='montecarlo_sim' && result.likely){
+      html+=`<div class="result-card">
+        <div class="rc-head"><div class="rc-title">Monte Carlo Simulation</div><div class="rc-meta">${result.simulations} runs · 50 bets each</div></div>
+        <div class="mc-grid">
+          <div class="mc-cell"><div class="mc-val">$${result.best}</div><div class="mc-lbl">Best (90th %ile)</div></div>
+          <div class="mc-cell"><div class="mc-val">$${result.likely}</div><div class="mc-lbl">Median</div></div>
+          <div class="mc-cell"><div class="mc-val">$${result.worst}</div><div class="mc-lbl">Worst (10th %ile)</div></div>
+        </div>
+        <div style="padding:10px 16px;font-family:var(--mono);font-size:9px;color:${parseFloat(result.ruin)>15?'var(--pale)':'var(--k4)'}">
+          Ruin probability: ${result.ruin}% · Stake: ${result.stake_pct}% of bankroll
+        </div>
+      </div>`;
+    }
+
+    if(tool==='parlay_decoder' && result.combined_odds){
+      html+=`<div class="result-card">
+        <div class="rc-head"><div class="rc-title">Parlay Analysis</div><div class="rc-meta">Combined @${result.combined_odds}</div></div>
+        <div class="parlay-legs">
+          ${result.legs.map((o,i)=>`<div class="pl-leg">
+            <div class="pl-num">${i+1}</div>
+            <div class="pl-info">
+              <div class="pl-match">Leg ${i+1}</div>
+              <div class="pl-sub">Odds: ${o} · Implied: ${(1/o*100).toFixed(0)}%</div>
+            </div>
+            <div class="pl-ev" style="color:var(--lt);font-family:var(--mono);font-size:11px">@${o}</div>
+          </div>`).join('')}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border-top:1px solid var(--k3)">
+          <div style="padding:12px 16px;text-align:center;border-right:1px solid var(--k3)"><div style="font-family:var(--serif);font-size:18px;color:var(--w)">${result.true_prob}%</div><div style="font-family:var(--mono);font-size:8px;color:var(--k4);margin-top:4px;text-transform:uppercase;letter-spacing:1px">True Prob</div></div>
+          <div style="padding:12px 16px;text-align:center;border-right:1px solid var(--k3)"><div style="font-family:var(--serif);font-size:18px;color:var(--w)">${result.implied_prob}%</div><div style="font-family:var(--mono);font-size:8px;color:var(--k4);margin-top:4px;text-transform:uppercase;letter-spacing:1px">Implied Prob</div></div>
+          <div style="padding:12px 16px;text-align:center"><div style="font-family:var(--serif);font-size:18px;color:${result.ev_pos?'var(--w)':'var(--k4)'}">${parseFloat(result.ev)>0?'+':''}${result.ev}%</div><div style="font-family:var(--mono);font-size:8px;color:var(--k4);margin-top:4px;text-transform:uppercase;letter-spacing:1px">Total EV</div></div>
+        </div>
+      </div>`;
+    }
+
+    if(tool==='risk_engine' && result.verdict){
+      const colors={AVOID:'var(--mid)',CAUTION:'var(--pale)',CLEAR:'var(--w)'};
+      html+=`<div class="result-card">
+        <div class="rc-head" style="background:${result.verdict==='AVOID'?'var(--k3)':'var(--k2)'}">
+          <div class="rc-title">Risk Assessment</div>
+          <div style="font-family:var(--mono);font-size:9px;color:${colors[result.verdict]}">${result.verdict}</div>
+        </div>
+        <div style="padding:14px 16px">
+          ${result.flags.length===0
+            ? '<div style="font-family:var(--mono);font-size:11px;color:var(--k4)">No risk flags — stake looks proportionate.</div>'
+            : result.flags.map(f=>`<div style="font-family:var(--mono);font-size:11px;color:var(--pale);padding:5px 0;border-bottom:1px solid var(--k2)">⚠ ${f}</div>`).join('')
+          }
+          <div style="margin-top:10px;font-family:var(--mono);font-size:10px;color:var(--k4)">
+            Stake: $${result.stake} = ${result.pct_of_bankroll}% of bankroll
+          </div>
+        </div>
+      </div>`;
+    }
+  });
+  return html;
+}
+
+/* ─── BEHAVIOR CHECK ─── */
+function checkBehavior(){
+  const alerts=[];
+  const bets=S.bets;
+  if(bets.length>=3 && bets.slice(0,3).every(b=>b.result==='loss'))
+    alerts.push({type:'danger',title:'3-Loss Streak',body:'High tilt risk. Consider a 24-hour break before next bet.'});
+  if(bets.length>=5){
+    const r5=bets.slice(0,5);
+    const avgStk=r5.reduce((s,b)=>s+b.stake,0)/5;
+    const e5=bets.slice(-5);
+    const earlyAvg=e5.reduce((s,b)=>s+b.stake,0)/5;
+    if(earlyAvg>0 && avgStk>earlyAvg*1.5)
+      alerts.push({type:'danger',title:'Stake Escalation',body:`Recent avg stake ${((avgStk/earlyAvg-1)*100).toFixed(0)}% above baseline.`});
+  }
+  if(bets.length>=8){
+    const resolved=bets.filter(b=>b.result==='win'||b.result==='loss');
+    const wr=resolved.filter(b=>b.result==='win').length/resolved.length;
+    if(wr<0.35) alerts.push({type:'warn',title:'Low Win Rate',body:`${(wr*100).toFixed(0)}% win rate over ${resolved.length} bets. Review your model.`});
+  }
+  return alerts;
+}
+
+function renderBehavior(alerts){
+  const el=document.getElementById('bhv-area');
+  const tag=document.getElementById('bhv-tag');
+  if(!alerts.length){
+    el.innerHTML='<div style="padding:16px 18px;font-family:var(--mono);font-size:10px;color:var(--k4)">No anomalies detected.</div>';
+    tag.textContent='Clear';
+    return;
+  }
+  el.innerHTML=`<div class="behavior-area">${alerts.map(a=>`
+    <div class="alert-item ${a.type}">
+      <div class="alert-head">${a.type==='danger'?'ALERT':'NOTICE'} — ${a.title}</div>
+      <div class="alert-body">${a.body}</div>
+    </div>`).join('')}</div>`;
+  tag.textContent=`${alerts.length} Alert${alerts.length>1?'s':''}`;
+}
+
+/* ─── MAIN SEND ─── */
+async function send(){
+  const text = inp.value.trim();
+  const media = [...S.media];
+  if(!text && !media.length) return;
+  if(S.busy) return;
+  S.busy=true;
+  document.getElementById('send-btn').disabled=true;
+  resetTools();
+
+  appendUser(text, media);
+  inp.value=''; inp.style.height='auto';
+  S.media=[]; renderStrip();
+
+  appendTyping();
+
+  try{
+    const hasImages = media.some(m=>m.kind==='image');
+    const params    = extract(text);
+    const toolResults=[];
+
+    // image attached note
+    const msgWithContext = text + (hasImages?' [USER HAS ATTACHED AN IMAGE]':'') + (media.some(m=>m.kind==='text')?' [USER ATTACHED TEXT FILE: '+media.filter(m=>m.kind==='text').map(m=>m.data.slice(0,500)).join(' ')+ ']' :'');
+
+    // 1. Decide tools
+    const tools = await decideTools(msgWithContext);
+
+    // 2. Run tools
+    for(const t of tools){
+      removeTyping();
+      appendToolCall(t,'running',null);
+      appendTyping();
+      toolState(t,'running');
+      const res = await runTool(t, text, params);
+      toolState(t, res.error ? 'idle' : 'active');
+      const summary = res.error ? `Error: ${res.error}` : Object.entries(res).slice(0,4).map(([k,v])=>`${k}: ${typeof v==='object'?JSON.stringify(v).slice(0,60):v}`).join(' · ');
+      // update the last tool call div
+      const all = document.querySelectorAll('.tool-block');
+      if(all.length){
+        const last=all[all.length-1];
+        last.querySelector('.tb-status').className=`tb-status ${res.error?'tb-error':'tb-done'}`;
+        last.querySelector('.tb-status').textContent=res.error?'error':'done';
+        if(!last.querySelector('.tb-body')&&summary){
+          const bd=document.createElement('div'); bd.className='tb-body'; bd.textContent=summary; last.appendChild(bd);
+        }
+      }
+      toolResults.push({tool:t,result:res});
+      removeTyping(); appendTyping();
+    }
+
+    // 3. Build context for AI
+    let toolCtx='';
+    if(toolResults.length){
+      toolCtx='\n\n[TOOL OUTPUTS]\n';
+      toolResults.forEach(({tool,result})=>{ toolCtx+=`\n${tool.toUpperCase()}:\n${JSON.stringify(result,null,2)}\n`; });
+    }
+    const betCtx = S.bets.length ? `\n[USER HISTORY: ${S.bets.length} bets, bankroll $${S.bankroll.toFixed(2)}, started at $${S.startBk}]` : '';
+    const cfgCtx = `\n[CONFIG: Kelly=${document.getElementById('cfg-kelly').value}, MaxBet=${document.getElementById('cfg-maxbet').value}%]`;
+
+    const system = `You are OPTIM — an elite agentic sports betting intelligence system built on rigorous quantitative methods. You reason like a disciplined quant analyst, not a tipster.
+
+Your responses are:
+- Precise and mathematical where numbers are involved
+- Direct — no fluff, no disclaimers repeated constantly
+- Actionable — always end with a clear recommendation or next step
+- Honest — warn clearly when a bet has negative EV, never sugarcoat bad bets
+
+You have just executed tools and have their outputs. Use them directly in your analysis.
+When tools give you data, cite the specific numbers.
+Keep responses well-structured but conversational — this is a chat, not a report.${betCtx}${cfgCtx}`;
+
+    // Build messages for Mistral
+    let userContent;
+    if(hasImages){
+      userContent=[
+        {type:'text',text:msgWithContext+toolCtx},
+        ...media.filter(m=>m.kind==='image').map(m=>({type:'image_url',image_url:`data:${m.mime};base64,${m.data}`}))
+      ];
+    } else {
+      userContent = msgWithContext + toolCtx;
+    }
+
+    S.history.push({role:'user',content:userContent});
+    if(S.history.length>20) S.history=S.history.slice(-20);
+
+    const response = await callMistral([{role:'system',content:system},...S.history],'mistral-large-latest',hasImages);
+    S.history.push({role:'assistant',content:response});
+
+    removeTyping();
+    const cards = buildCards(toolResults);
+    appendAI(fmt(response), cards||null);
+
+  }catch(err){
+    removeTyping();
+    appendAI(`<p style="color:var(--mid)">Error: ${esc(err.message)}</p>`, null);
+    toast('Error: '+err.message);
+  }
+
+  S.busy=false;
+  document.getElementById('send-btn').disabled=false;
+  updateUI();
+}
+
+/* ─── LOG BET ─── */
+function logBet(){
+  const match  = document.getElementById('lf-match').value.trim();
+  const mkt    = document.getElementById('lf-mkt').value.trim();
+  const odds   = parseFloat(document.getElementById('lf-odds').value);
+  const stake  = parseFloat(document.getElementById('lf-stake').value);
+  const result = document.getElementById('lf-result').value;
+
+  if(!match||!odds||!stake){ toast('Fill in match, odds, and stake'); return; }
+
+  if(result==='win')  S.bankroll += stake*(odds-1);
+  if(result==='loss') S.bankroll -= stake;
+
+  S.bets.unshift({id:Date.now(),match,market:mkt,odds,stake,result,ts:new Date().toISOString()});
+  save(); updateUI(); toast(`Logged: ${match} — ${result.toUpperCase()}`);
+  ['lf-match','lf-mkt','lf-odds','lf-stake'].forEach(id=>{ document.getElementById(id).value=''; });
+  document.getElementById('lf-result').value='pending';
+}
+
+/* ─── UPDATE UI ─── */
+function updateUI(){
+  const bk=S.bankroll, sk=S.startBk;
+  const chg=bk-sk, pct=(chg/sk*100).toFixed(1);
+  const fmtBk = v=>v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+
+  document.getElementById('bk-val').textContent    = fmtBk(bk);
+  document.getElementById('topbk-val').textContent = '$'+fmtBk(bk);
+  document.getElementById('bk-fill').style.width   = Math.min(100,Math.max(2,(bk/sk)*100))+'%';
+  document.getElementById('roi-tag').textContent   = `ROI ${chg>=0?'+':''}${pct}%`;
+
+  const delta=document.getElementById('bk-delta');
+  delta.className='bk-delta '+(chg>=0?'pos':'neg');
+  delta.textContent=`${chg>=0?'+':''}$${chg.toFixed(2)} (${chg>=0?'+':''}${pct}%)`;
+
+  const bets=S.bets;
+  const resolved=bets.filter(b=>b.result==='win'||b.result==='loss');
+  const wins=bets.filter(b=>b.result==='win');
+  const wr=resolved.length?((wins.length/resolved.length)*100).toFixed(0)+'%':'—';
+  const pl=wins.reduce((s,b)=>s+b.stake*(b.odds-1),0)-bets.filter(b=>b.result==='loss').reduce((s,b)=>s+b.stake,0);
+  const plStr=(pl>=0?'+$':'−$')+Math.abs(pl).toFixed(2);
+
+  let streak=0;
+  for(const b of bets){
+    if(b.result==='pending'||b.result==='void') continue;
+    if(streak===0){streak=b.result==='win'?1:-1;continue;}
+    if((b.result==='win'&&streak>0)||(b.result==='loss'&&streak<0)) streak+=streak>0?1:-1;
+    else break;
+  }
+
+  document.getElementById('s-bets').textContent = bets.length;
+  document.getElementById('s-wr').textContent   = wr;
+  document.getElementById('s-pl').textContent   = resolved.length?plStr:'—';
+  document.getElementById('s-str').textContent  = streak===0?'—':(streak>0?'+':'')+streak;
+  document.getElementById('hist-tag').textContent = bets.length+' bet'+(bets.length!==1?'s':'');
+
+  // History
+  const hl=document.getElementById('hist-list');
+  if(!bets.length){
+    hl.innerHTML='<div style="padding:20px 18px;font-family:var(--mono);font-size:10px;color:var(--k4)">No bets logged yet.</div>';
+  } else {
+    hl.innerHTML=bets.slice(0,30).map(b=>{
+      const rc={win:'rw',loss:'rl',pending:'rp',void:'rp'}[b.result]||'rp';
+      return `<div class="hist-row">
+        <div class="hr-match">${esc(b.match)}</div>
+        <div class="hr-meta">
+          <span class="hr-tag">${esc(b.market||'—')}</span>
+          <span class="hr-tag">@${b.odds}</span>
+          <span class="hr-tag">$${b.stake}</span>
+          <span class="hr-result ${rc}">${b.result.toUpperCase()}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Behavior
+  renderBehavior(checkBehavior());
+}
+
+/* ─── EXPORT / CLEAR ─── */
+function exportData(){
+  const d=JSON.stringify({bankroll:S.bankroll,startBk:S.startBk,bets:S.bets,exported:new Date().toISOString()},null,2);
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([d],{type:'application/json'}));
+  a.download='optim_data.json'; a.click(); toast('Exported');
+}
+
+function clearHistory(){
+  if(!confirm('Clear all bet history?')) return;
+  S.bets=[]; save(); updateUI(); toast('History cleared');
+}
+
+/* ─── INIT ─── */
+updateUI();
+document.getElementById('cfg-bk').value = S.startBk;
+
+// Welcome message
+setTimeout(()=>{
+  appendAI(fmt(`**OPTIM is online.**
+
+I'm your agentic betting intelligence system. I deploy 12 analytical tools — EV models, Kelly sizing, Monte Carlo simulations, live web search, image vision, and behavioural monitoring — all triggered automatically based on what you ask.
+
+**How to use me:**
+- **Analyse a match** — paste the odds and teams, I'll run EV analysis, market scanning, and pull live team data
+- **Size your bet** — tell me your probability estimate and I'll calculate Kelly-optimal stakes
+- **Upload a bet slip** — attach an image and I'll read and analyse it using Mistral's vision model
+- **Record your voice** — tap the mic, speak naturally, Voxtral transcribes it
+- **Ask anything** — I understand natural language, not forms
+
+What are you working on?`), null);
+}, 300);
+alert("set site to desktop mode for a clearer view")
+</script>
+</body>
+</html>
